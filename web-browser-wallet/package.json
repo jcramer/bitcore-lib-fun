@@ -13,6 +13,8 @@
     "@types/react-dom": "^17.0.0",
     "bchaddrjs-slp": "^0.2.12",
     "big.js": "^6.0.3",
+    "bip32": "^2.0.6",
+    "bip39": "^3.0.3",
     "bitcore-lib-cash": "^8.24.1",
     "grpc-bchrpc-web": "^0.11.4",
     "qrcode.react": "^1.0.1",
