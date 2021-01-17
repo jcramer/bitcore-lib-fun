@@ -31,6 +31,8 @@ class App extends Component<IProps, IState> {
       useMainnet: true,
       checkingBalance: true
     };
+
+    this.wallet.Subscribe();
   }
 
   public componentDidMount() {

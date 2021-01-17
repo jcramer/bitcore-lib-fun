@@ -9,7 +9,9 @@ import { CacheSet } from "./CacheSet";
 type tokenId = string;
 type outpoint = string;
 
+const txidSeen = new CacheSet<string>(100000);
 const addressPath = "m/44'/245'/0'/0/0";
+const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
 
 export class Wallet {
   private parent?: App;
@@ -152,6 +154,102 @@ export class Wallet {
     if (callback) {
       callback();
     }
+  }
+
+  public Subscribe() {
+
+    // setup a self-healing stream for mempool transactions
+    const createTxnStream = async () => {
+      const client = new GrpcClient({ url: this.networkUrl });
+      const txnStream = await client.subscribeTransactions({
+        includeMempoolAcceptance: true,
+        includeBlockAcceptance: false,
+        includeSerializedTxn: false,
+        addresses: [this.Address]
+      });
+      txnStream.on("end", async (error) => {
+        while (true) {
+          await sleep(30000);
+          try {
+            console.log(`[WALLET] trying to re-establish txn data stream...`);
+            createTxnStream();
+            break;
+          } catch (error) {
+            console.log(error);
+          }
+        }
+      });
+      txnStream.on("data", async (data: TransactionNotification) => {
+        const txid = Buffer.from(data.getUnconfirmedTransaction()!.getTransaction()!.getHash_asU8()).toString("hex");
+        if (txidSeen.has(txid)) {
+          return;
+        }
+        txidSeen.push(txid);
+        console.log(`${txid}`);
+
+        const tokenIds = new Set<string>();
+        this.indexTransactionIO([data.getUnconfirmedTransaction()!.getTransaction()!], tokenIds);
+        for (const tokenId of tokenIds) {
+          if (!this.tokenMetadata.has(tokenId)) {
+            const res = await client.getTokenMetadata([...tokenIds.keys()]);
+            res.getTokenMetadataList().forEach(tm => this.tokenMetadata.set(tokenId, tm));
+          }
+        }
+
+        this.UpdateBalances(this.updateParent);
+      });
+      console.log(`[WALLET] txn data stream established.`);
+    };
+    createTxnStream();
+
+    // setup a self-healing stream for getting serialized block data
+    const createBlockDataStream = async () => {
+      const client = new GrpcClient({ url: this.networkUrl });
+      const blockDataStream = await client.subscribeBlocks({ includeSerializedBlock: true });
+      blockDataStream.on("end", async (error) => {
+        while (true) {
+          await sleep(30000);
+          try {
+            console.log(`[WALLET] trying to re-establish block data stream...`);
+            createBlockDataStream();
+            break;
+          } catch (_) {}
+        }
+      });
+      blockDataStream.on("data", async (data: BlockNotification) => {
+        // const blockBuf = Buffer.from(data.getSerializedBlock_asU8());
+        // const block = new Block(blockBuf);
+        console.log("BLOCK found");
+        // for (const txn of block.transactions) {
+        //   // todo...
+          
+        // }
+      });
+      console.log(`[WALLET] block data stream established.`);
+    };
+    createBlockDataStream();
+
+    // setup a self-healing stream for getting block height
+    const createBlockInfoStream = async () => {
+      const client = new GrpcClient({ url: this.networkUrl });
+      const blockInfoStream = await client.subscribeBlocks();
+      blockInfoStream.on("end", async (error) => {
+        while (true) {
+          await sleep(30000);
+          try {
+            console.log(`[WALLET] trying to re-establish block info stream...`);
+            createBlockInfoStream();
+            break;
+          } catch (_) {}
+        }
+      });
+      blockInfoStream.on("data", async (data: BlockNotification) => {
+        const height = data.getBlockInfo()!.getHeight();
+        console.log(`Block found: ${height}`);
+      });
+      console.log(`[WALLET] block info stream established.`);
+    };
+    createBlockInfoStream();
   }
 
   private updateParent = () => {
