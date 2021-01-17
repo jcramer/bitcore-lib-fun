@@ -19,6 +19,7 @@ interface IState {
 
 class App extends Component<IProps, IState> {
   public wallet = new Wallet(this);
+  private mounted = false;
 
   constructor(props: IProps) {
     super(props);
@@ -32,11 +33,21 @@ class App extends Component<IProps, IState> {
     };
   }
 
+  public componentDidMount() {
+    this.mounted = true;
+  }
+
+  public Redraw() {
+    if (this.mounted) {
+      this.forceUpdate();
+    }
+  }
+
   public render() {
     return (
       <div className="App">
         <header className="App-header">
-          <h1>Browser Wallet Example</h1><br/>
+          <h1>A Bitcoin Cash Browser Wallet.</h1><br/>
 
           {/* TODO: Dropdown to select wallet type single WIF or HD path */}
 
@@ -92,10 +103,14 @@ class App extends Component<IProps, IState> {
           <div hidden={this.wallet.SlpCoins.size === 0}>
             <strong>SLP Token Balances:</strong><br/>
             <table>
-              <tr><th>name</th><th>amount</th></tr>
-              {Array.from(this.wallet.GetSlpBalances()).map(b => {
-                return (<tr><td>{this.getTokenName(b[0])}</td><td>{this.getSlpAmountString(b[0], b[1])}</td></tr>);
-              })}
+              <thead key="thead"><tr><th>name</th><th>amount</th></tr></thead>
+              <tbody key="tbody">
+              {
+                Array.from(this.wallet.GetSlpBalances()).map(b => {
+                  return (<tr key={b[0]}><td>{this.getTokenName(b[0])}</td><td>{this.getSlpAmountString(b[0], b[1])}</td></tr>);
+                })
+              }
+              </tbody>
             </table>
           </div>
           <p hidden={this.wallet.SlpCoins!.size !== 0}>

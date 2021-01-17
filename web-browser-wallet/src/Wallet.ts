@@ -2,8 +2,9 @@ import { Big } from "big.js";
 import * as bip32 from "bip32";
 import * as bip39 from "bip39";
 import { PrivateKey } from "bitcore-lib-cash";
-import { GrpcClient, TokenMetadata, Transaction } from "grpc-bchrpc-web";
-import { Component } from "react";
+import { BlockNotification, GrpcClient, TokenMetadata, Transaction, TransactionNotification } from "grpc-bchrpc-web";
+import App from "./App";
+import { CacheSet } from "./CacheSet";
 
 type tokenId = string;
 type outpoint = string;
@@ -11,7 +12,7 @@ type outpoint = string;
 const addressPath = "m/44'/245'/0'/0/0";
 
 export class Wallet {
-  private parent?: Component;
+  private parent?: App;
   private mnemonic: string;
   private privateKey: PrivateKey;
   private networkUrl = "https://bchd.ny1.simpleledger.io";
@@ -22,7 +23,8 @@ export class Wallet {
   private slpTxo = new Map<tokenId, Map<outpoint, Big>>();
   private tokenMetadata = new Map<tokenId, TokenMetadata>();
 
-  constructor(parent?: Component) {
+  constructor(parent?: App) {
+
     // set private key
     this.parent = parent;
     this.mnemonic = bip39.generateMnemonic();
@@ -61,8 +63,34 @@ export class Wallet {
 
   public get Address() { return this.privateKey.toAddress().toCashAddress(); }
   public get NetworkUrl() { return this.networkUrl; }
-  public get BchCoins() { return this.bchTxi; }
-  public get SlpCoins() { return this.slpTxi; }
+
+  public get BchCoins() {
+    let coins = new Map<outpoint, Big>();
+    this.bchTxo.forEach((amt, outpoint) => {
+      coins.set(outpoint, amt);
+      if (this.bchTxi.has(outpoint)) {
+        coins.delete(outpoint);
+      }
+    });
+    return coins;
+  }
+
+  public get SlpCoins() {
+    let coins = new Map<tokenId, Map<outpoint, Big>>();
+    this.slpTxo.forEach((_coins, tokenid) => {
+      coins.set(tokenid, _coins);
+      let inputs = this.slpTxi.get(tokenid);
+      if (inputs) {
+        _coins.forEach((_, outpoint) => {
+          if (inputs!.has(outpoint)) {
+            _coins.delete(outpoint);
+          }
+        });
+      }
+    });
+    return coins;
+  }
+
   public get TokenMetadata() { return this.tokenMetadata; }
 
   public UpdateMnemonic(m: string) {
@@ -88,8 +116,10 @@ export class Wallet {
       slpBals.set(coins[0], Array.from(coins[1]).reduce((p, c) => p.add(c[1]), Big(0)));
     });
     Array.from(this.slpTxo!).forEach((coins) => {
-      const bal = slpBals.get(coins[0])!;
-      slpBals.set(coins[0], Array.from(coins[1]).reduce((p, c) => p.add(c[1]), Big(0)).sub(bal));
+      let bal = slpBals.get(coins[0])!;
+      if (!bal) { bal = Big(0); }
+      let outs = Array.from(coins[1]).reduce((p, c) => p.add(c[1]), Big(0));
+      slpBals.set(coins[0], outs.sub(bal));
     });
     return slpBals;
   }
@@ -126,7 +156,7 @@ export class Wallet {
 
   private updateParent = () => {
     if (this.parent) {
-      this.parent.forceUpdate();
+      this.parent.Redraw();
     }
   }
 
@@ -143,7 +173,7 @@ export class Wallet {
           if (!this.slpTxi.has(_tokenId)) {
             this.slpTxi.set(_tokenId, new Map<outpoint, Big>());
           }
-          this.slpTxi.get(_tokenId)!.set(op, Big(inp.getValue()));
+          this.slpTxi.get(_tokenId)!.set(op, Big(inp.getSlpToken()!.getAmount()));
         } else {
           this.bchTxi.set(op, Big(inp.getValue()));
         }
@@ -159,7 +189,7 @@ export class Wallet {
           if (!this.slpTxo.has(_tokenId)) {
             this.slpTxo.set(_tokenId, new Map<outpoint, Big>());
           }
-          this.slpTxo.get(_tokenId)!.set(op, Big(out.getValue()));
+          this.slpTxo.get(_tokenId)!.set(op, Big(out.getSlpToken()!.getAmount()));
         } else {
           this.bchTxo.set(op, Big(out.getValue()));
         }
