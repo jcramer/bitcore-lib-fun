@@ -1,0 +1,23 @@
+{
+  "files": {
+    "main.css": "/bitcore-lib-fun/static/css/main.c6f096f7.chunk.css",
+    "main.js": "/bitcore-lib-fun/static/js/main.01188203.chunk.js",
+    "main.js.map": "/bitcore-lib-fun/static/js/main.01188203.chunk.js.map",
+    "runtime-main.js": "/bitcore-lib-fun/static/js/runtime-main.f1a2b680.js",
+    "runtime-main.js.map": "/bitcore-lib-fun/static/js/runtime-main.f1a2b680.js.map",
+    "static/js/2.74f2ae0c.chunk.js": "/bitcore-lib-fun/static/js/2.74f2ae0c.chunk.js",
+    "static/js/2.74f2ae0c.chunk.js.map": "/bitcore-lib-fun/static/js/2.74f2ae0c.chunk.js.map",
+    "static/js/3.1da50285.chunk.js": "/bitcore-lib-fun/static/js/3.1da50285.chunk.js",
+    "static/js/3.1da50285.chunk.js.map": "/bitcore-lib-fun/static/js/3.1da50285.chunk.js.map",
+    "index.html": "/bitcore-lib-fun/index.html",
+    "static/css/main.c6f096f7.chunk.css.map": "/bitcore-lib-fun/static/css/main.c6f096f7.chunk.css.map",
+    "static/js/2.74f2ae0c.chunk.js.LICENSE.txt": "/bitcore-lib-fun/static/js/2.74f2ae0c.chunk.js.LICENSE.txt",
+    "static/media/logo.svg": "/bitcore-lib-fun/static/media/logo.a5dd61ec.svg"
+  },
+  "entrypoints": [
+    "static/js/runtime-main.f1a2b680.js",
+    "static/js/2.74f2ae0c.chunk.js",
+    "static/css/main.c6f096f7.chunk.css",
+    "static/js/main.01188203.chunk.js"
+  ]
+}
