@@ -1,0 +1,15 @@
+diff --git a/node_modules/elliptic/node_modules/bn.js/lib/bn.js b/node_modules/elliptic/node_modules/bn.js/lib/bn.js
+index 855dfa6..caebf61 100644
+--- a/node_modules/elliptic/node_modules/bn.js/lib/bn.js
++++ b/node_modules/elliptic/node_modules/bn.js/lib/bn.js
+@@ -513,8 +513,8 @@
+   };
+ 
+   BN.prototype.toBuffer = function toBuffer (endian, length) {
+-    assert(typeof Buffer !== 'undefined');
+-    return this.toArrayLike(Buffer, endian, length);
++    assert(typeof global.Buffer !== 'undefined');
++    return this.toArrayLike(global.Buffer, endian, length);
+   };
+ 
+   BN.prototype.toArray = function toArray (endian, length) {

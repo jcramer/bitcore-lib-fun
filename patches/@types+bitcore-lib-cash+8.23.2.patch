@@ -1,0 +1,32 @@
+diff --git a/node_modules/@types/bitcore-lib-cash/index.d.ts b/node_modules/@types/bitcore-lib-cash/index.d.ts
+index aad4473..012d9eb 100644
+--- a/node_modules/@types/bitcore-lib-cash/index.d.ts
++++ b/node_modules/@types/bitcore-lib-cash/index.d.ts
+@@ -263,7 +263,9 @@ export namespace Transaction {
+ 
+ export class Transaction {
+     inputs: Transaction.Input[];
++    inputAmount: number;
+     outputs: Transaction.Output[];
++    outputAmount: number;
+     readonly id: string;
+     readonly hash: string;
+     nid: string;
+@@ -317,7 +319,7 @@ export class Transaction {
+     lockUntilDate(time: Date | number): this;
+     lockUntilBlockHeight(height: number): this;
+ 
+-    addOutput(output: Transaction.Output): this;
++    addOutput(output: Transaction.Output, index?: number): this;
+     addData(value: Buffer | string): this;
+     clearOutputs(): this;
+     removeOutput(index: number): void;
+@@ -336,6 +338,8 @@ export class Transaction {
+     isCoinbase(): boolean;
+ 
+     inspect(): string;
++
++    _estimateSize(): number;
+ }
+ 
+ export class Block {

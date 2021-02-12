@@ -1,0 +1,59 @@
+diff --git a/node_modules/bitcore-lib-cash/lib/transaction/transaction.js b/node_modules/bitcore-lib-cash/lib/transaction/transaction.js
+index 7f985f2..cb2379a 100644
+--- a/node_modules/bitcore-lib-cash/lib/transaction/transaction.js
++++ b/node_modules/bitcore-lib-cash/lib/transaction/transaction.js
+@@ -789,11 +789,16 @@ Transaction.prototype.addData = function(value) {
+  * Add an output to the transaction.
+  *
+  * @param {Output} output the output to add.
++ * @param {number|undefined} index is the desired output index for the output
+  * @return {Transaction} this, for chaining
+  */
+-Transaction.prototype.addOutput = function(output) {
++Transaction.prototype.addOutput = function(output, index) {
+   $.checkArgumentType(output, Output, 'output');
+-  this._addOutput(output);
++  if (_.isUndefined(index)) {
++    this._addOutput(output);
++  } else {
++    this._insertOutput(output, index);
++  }
+   this._updateChangeOutput();
+   return this;
+ };
+@@ -819,6 +824,15 @@ Transaction.prototype._addOutput = function(output) {
+   this._outputAmount = undefined;
+ };
+ 
++Transaction.prototype._insertOutput = function(output, index) {
++  if (index >= this.outputs.length) {
++    this._addOutput(output);
++  } else {
++    this.outputs.splice(index, 0, output);
++    this._outputAmount = undefined;
++  }
++};
++
+ 
+ /**
+  * Calculates or gets the total output amount in satoshis
+@@ -865,7 +879,7 @@ Transaction.prototype._updateChangeOutput = function() {
+   var available = this._getUnspentValue();
+   var fee = this.getFee();
+   var changeAmount = available - fee;
+-  if (changeAmount > 0) {
++  if (changeAmount >= Transaction.DUST_AMOUNT) {
+     this._changeIndex = this.outputs.length;
+     this._addOutput(new Output({
+       script: this._changeScript,
+@@ -938,7 +952,9 @@ Transaction.prototype._clearSignatures = function() {
+ Transaction.prototype._estimateSize = function() {
+   var result = Transaction.MAXIMUM_EXTRA_SIZE;
+   _.each(this.inputs, function(input) {
+-    result += input._estimateSize();
++    let scriptSigLen = input._estimateSize();
++    let varintLen = BufferWriter.varintBufNum(scriptSigLen).length;
++    result += 36 + varintLen + scriptSigLen;
+   });
+   _.each(this.outputs, function(output) {
+     result += output.script.toBuffer().length + 9;
