@@ -2,11 +2,11 @@ import { Big } from "big.js";
 import * as bip32 from "bip32";
 import * as bip39 from "bip39";
 import { Address, PrivateKey, Transaction as Txn } from "bitcore-lib-cash";
-import { TokenMetadata, Transaction } from "grpc-bchrpc-web";
+import { TokenMetadata, Transaction } from "grpc-bchrpc";
 
-import { App, Outpoint, TokenId, WalletStorage } from "./Interfaces";
+import { App, bchtxio, OutpointStr, slptxio, TokenId, WalletStorage } from "./Interfaces";
 import { CacheSet } from "../CacheSet";
-import { BchdNetwork } from "./Network/BchdNetwork";
+import { BchdNetwork } from "../slpwallet-web/BchdNetwork";
 import Utils from "./Utils";
 
 const txidsSeen = new CacheSet<string>(100000);
@@ -14,7 +14,7 @@ const addressPath = "m/44'/245'/0'/0/0";
 
 export class Wallet {
 
-  public SlpOutpointCache = new Map<Outpoint, { amount: Big, address: Address, satoshis: Big, tokenId: string}>();
+  public SlpOutpointCache = new Map<OutpointStr, { amount: Big, address: Address, satoshis: Big, tokenId: string}>();
 
   public static EstimateTxnSize(txn: Txn) {
     return txn._estimateSize();
@@ -44,10 +44,10 @@ export class Wallet {
   // private addresses = new Map<address, { bank: string, kind: AddressKind, info: number|Buffer }>();
   // private transactions = new Map<txid, { height: number }>();
 
-  private bchTxi = new Map<Outpoint, { satoshis: Big, address: Address}>();
-  private bchTxo = new Map<Outpoint, { satoshis: Big, address: Address}>();
-  private slpTxi = new Map<TokenId, Map<Outpoint, { amount: Big, address: Address, satoshis: Big }>>();
-  private slpTxo = new Map<TokenId, Map<Outpoint, { amount: Big, address: Address, satoshis: Big }>>();
+  private bchTxi = new Map<OutpointStr, bchtxio>();
+  private bchTxo = new Map<OutpointStr, bchtxio>();
+  private slpTxi = new Map<TokenId, Map<OutpointStr, slptxio>>();
+  private slpTxo = new Map<TokenId, Map<OutpointStr, slptxio>>();
 
   // private bch = new Map<bank, { bchTxi: Map<address, Map<outpoint, Big>>, bchTxo: Map<address, Map<outpoint, Big>> }>();
   // private slp = new Map<bank, Map<tokenId, { slpTxi: Map<address, Map<outpoint, Big>>, slpTxo: Map<address, Map<outpoint, Big>> }>>();
@@ -76,6 +76,11 @@ export class Wallet {
         this.privateKey = new PrivateKey(child.toWIF());
       }
     }
+
+    // load last block fetch (and other state)
+
+    // load previous transactions
+
   }
 
   public get Mnemonic() {
@@ -120,7 +125,7 @@ export class Wallet {
   public get Address() { return this.privateKey.toAddress(); }
 
   public get BchCoins() {
-    let coins = new Map<Outpoint, { satoshis: Big, address: Address }>();
+    let coins = new Map<OutpointStr, { satoshis: Big, address: Address }>();
     this.bchTxo.forEach((dat, outpoint) => {
       coins.set(outpoint, dat);
       if (this.bchTxi.has(outpoint)) {
@@ -131,11 +136,11 @@ export class Wallet {
   }
 
   public get SlpCoins() {
-    let coins = new Map<TokenId, Map<Outpoint, { amount: Big, address: Address, satoshis: Big }>>();
+    let coins = new Map<TokenId, Map<OutpointStr, { amount: Big, address: Address, satoshis: Big }>>();
     this.slpTxo.forEach((_coins, tokenId) => {
-      let coinMap: Map<Outpoint, { amount: Big, address: Address, satoshis: Big }>;
+      let coinMap: Map<OutpointStr, { amount: Big, address: Address, satoshis: Big }>;
       if (!coins.has(tokenId)) {
-        let coinMap = new Map<Outpoint, { amount: Big, address: Address, satoshis: Big }>();
+        let coinMap = new Map<OutpointStr, { amount: Big, address: Address, satoshis: Big }>();
         coins.set(tokenId, coinMap);
       }
       coinMap = coins.get(tokenId)!;
@@ -179,11 +184,17 @@ export class Wallet {
   }
 
   public async LoadInitialBalances() {
-    this.bchTxi = new Map<Outpoint, { satoshis: Big, address: Address}>();
-    this.bchTxo = new Map<Outpoint, { satoshis: Big, address: Address}>();
-    this.slpTxi = new Map<TokenId, Map<Outpoint, { amount: Big, address: Address, satoshis: Big }>>();
-    this.slpTxo = new Map<TokenId, Map<Outpoint, { amount: Big, address: Address, satoshis: Big }>>();
+
+    // fetch from storage
+    while (!this.storage.GetDb) {
+      await Utils.sleep(100);
+    }
+    this.bchTxi = await this.storage.GetAllBchTxi();
+    this.bchTxo = await this.storage.GetAllBchTxo();
+    this.slpTxi = await this.storage.GetAllSlpTxi();
+    this.slpTxo = await this.storage.GetAllSlpTxo();
   
+    // todo include last block height fetched
     const res = await this.network.GetAddressTransactions(this.Address.toCashAddress());
     await this.indexTransactionIO(res.getConfirmedTransactionsList());
     await this.indexTransactionIO(res.getUnconfirmedTransactionsList()!.map(o => o.getTransaction()!));
@@ -276,11 +287,15 @@ export class Wallet {
           const _tokenId = Buffer.from(inp.getSlpToken()!.getTokenId_asU8()).toString("hex");
           tokenIds.add(_tokenId);
           if (!this.slpTxi.has(_tokenId)) {
-            this.slpTxi.set(_tokenId, new Map<Outpoint, { amount: Big, address: Address, satoshis: Big }>());
+            this.slpTxi.set(_tokenId, new Map<OutpointStr, { amount: Big, address: Address, satoshis: Big }>());
           }
-          this.slpTxi.get(_tokenId)!.set(op, { amount: Big(inp.getSlpToken()!.getAmount()), address: new Address(inp.getAddress()), satoshis: Big(inp.getValue()) });
+          let txi = { amount: Big(inp.getSlpToken()!.getAmount()), address: new Address(inp.getAddress()), satoshis: Big(inp.getValue()) };
+          this.slpTxi.get(_tokenId)!.set(op, txi);
+          this.storage.AddSlpTxi(_tokenId, op, txi);
         } else {
-          this.bchTxi.set(op, { satoshis: Big(inp.getValue()), address: new Address(inp.getAddress()) });
+          let txi = { satoshis: Big(inp.getValue()), address: new Address(inp.getAddress()) }
+          this.bchTxi.set(op, txi);
+          this.storage.AddBchTxi(op, txi);
         }
       }
       for (const out of tx.getOutputsList()) {
@@ -292,11 +307,15 @@ export class Wallet {
           const _tokenId = Buffer.from(out.getSlpToken()!.getTokenId_asU8()).toString("hex");
           tokenIds.add(_tokenId);
           if (!this.slpTxo.has(_tokenId)) {
-            this.slpTxo.set(_tokenId, new Map<Outpoint, { amount: Big, address: Address, satoshis: Big }>());
+            this.slpTxo.set(_tokenId, new Map<OutpointStr, { amount: Big, address: Address, satoshis: Big }>());
           }
-          this.slpTxo.get(_tokenId)!.set(op, { amount: Big(out.getSlpToken()!.getAmount()), address: new Address(out.getAddress()), satoshis: Big(out.getValue()) });
+          let txi = { amount: Big(out.getSlpToken()!.getAmount()), address: new Address(out.getAddress()), satoshis: Big(out.getValue()) };
+          this.slpTxo.get(_tokenId)!.set(op, txi);
+          this.storage.AddSlpTxo(_tokenId, op, txi);
         } else {
-          this.bchTxo.set(op, { satoshis: Big(out.getValue()), address: new Address(out.getAddress()) });
+          let txi = { satoshis: Big(out.getValue()), address: new Address(out.getAddress()) };
+          this.bchTxo.set(op, txi);
+          this.storage.AddBchTxo(op, txi);
         }
       }
     }

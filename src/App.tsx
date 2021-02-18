@@ -4,14 +4,14 @@ import "./App.css";
 import logo from "./logo.svg";
 import QRCode from "qrcode.react";
 
+import { Address } from "bitcore-lib-cash";
 import bchaddr from "bchaddrjs-slp";
 import { Big } from "big.js";
 import { TokenMetadata } from "grpc-bchrpc-web/pb/bchrpc_pb";
 
-import { Address } from "bitcore-lib-cash";
-import { DUST_LIMIT, TxBuilder } from "./slpwallet/TxBuilder";
-import { DomWallet } from "./slpwallet";
-import Utils from "./slpwallet/Utils";
+import { DUST_LIMIT, TxBuilder } from "./slpwallet-core/TxBuilder";
+import { BrowserWalletContainer } from "./slpwallet-web";
+import Utils from "./slpwallet-core/Utils";
 
 interface IProps {}
 
@@ -53,9 +53,8 @@ const myTableStyle = {
   "marginRight": "auto"
 } as React.CSSProperties;
 
-
 class App extends Component<IProps, IState> {
-  private readonly domWallet: DomWallet = new DomWallet(this);
+  private readonly slpWallet: BrowserWalletContainer = new BrowserWalletContainer(this);
   private mounted = false;
 
   constructor(props: IProps) {
@@ -64,7 +63,7 @@ class App extends Component<IProps, IState> {
     this.state = {
       showPrivKey: false,
       showSlpAddressFormat: true,
-      address: bchaddr.toSlpAddress(this.domWallet.Wallet.Address.toCashAddress()),
+      address: bchaddr.toSlpAddress(this.slpWallet.Wallet.Address.toCashAddress()),
       useMainnet: true,
       checkingBalance: true,
       showCoins: false,
@@ -77,15 +76,15 @@ class App extends Component<IProps, IState> {
       outputAmountValid: false,
       selectedSlpTokenId: "bch",
       slpOutputs: [],
-      currentTxn: new TxBuilder(this.domWallet.Wallet),
+      currentTxn: new TxBuilder(this.slpWallet.Wallet),
       txnValidationErrors: new Set<string>()
     };
   }
 
   public componentDidMount() {
     this.mounted = true;
-    this.domWallet.Wallet.LoadInitialBalances();
-    this.domWallet.Wallet.Subscribe();
+    this.slpWallet.Wallet.LoadInitialBalances();
+    this.slpWallet.Wallet.Subscribe();
   }
 
   public UpdateWalletUI() {
@@ -113,9 +112,9 @@ class App extends Component<IProps, IState> {
           <br/><br/>
           <strong>Back up your funds with your 12-word seed phase!!!</strong><br/>
           <div hidden={!this.state.showPrivKey}>
-            WIF or Seed Phrase:<br/><input defaultValue={`${this.domWallet.Wallet.Mnemonic ? this.domWallet.Wallet.Mnemonic : this.domWallet.Wallet.Wif}`} onChange={this.importMnemonic}/><br/>
-            <div hidden={this.domWallet.Wallet.XPub === null}>
-              Xpub:<br/>{this.domWallet.Wallet.XPub}
+            WIF or Seed Phrase:<br/><input defaultValue={`${this.slpWallet.Wallet.Mnemonic ? this.slpWallet.Wallet.Mnemonic : this.slpWallet.Wallet.Wif}`} onChange={this.importMnemonic}/><br/>
+            <div hidden={this.slpWallet.Wallet.XPub === null}>
+              Xpub:<br/>{this.slpWallet.Wallet.XPub}
             </div>
           </div>
 
@@ -150,26 +149,26 @@ class App extends Component<IProps, IState> {
           <QRCode value={this.state.address!} /><br/>
 
           {/* Display SLP token balances */}
-          <div hidden={this.domWallet.Wallet.SlpCoins.size === 0}>
+          <div hidden={this.slpWallet.Wallet.SlpCoins.size === 0}>
             <strong>Balances:</strong><br/>
             <table style={myTableStyle}>
               <thead><tr><th>name</th><th>amount</th></tr></thead>
               <tbody>
-                <tr key="bch-bal"><td>BCH</td><td>{this.domWallet.Wallet.GetBchBalance().div(10**8).toFixed(8)}</td></tr>
+                <tr key="bch-bal"><td>BCH</td><td>{this.slpWallet.Wallet.GetBchBalance().div(10**8).toFixed(8)}</td></tr>
               {
-                Array.from(this.domWallet.Wallet.GetSlpBalances()).map(b => {
+                Array.from(this.slpWallet.Wallet.GetSlpBalances()).map(b => {
                   return (<tr key={`${b[0]}-bal`}><td>{this.getTokenName(b[0])}</td><td>{this.getSlpAmountString(b[1], b[0])}</td></tr>);
                 })
               }
               </tbody>
             </table>
           </div><br/>
-          <p hidden={this.domWallet.Wallet.SlpCoins!.size !== 0}>
+          <p hidden={this.slpWallet.Wallet.SlpCoins!.size !== 0}>
             No BCH or SLP balance.
           </p>
 
           {/* BCH Txn History */}
-          <div hidden={this.domWallet.Wallet.BchCoins.size === 0}>
+          <div hidden={this.slpWallet.Wallet.BchCoins.size === 0}>
             <button
               onClick={() => this.setState({ showBchHistory: !this.state.showBchHistory })}
             >
@@ -182,7 +181,7 @@ class App extends Component<IProps, IState> {
 
 
           {/* SLP Transaction History */}
-          <div hidden={this.domWallet.Wallet.SlpCoins.size === 0}>
+          <div hidden={this.slpWallet.Wallet.SlpCoins.size === 0}>
             <button
               onClick={() => this.setState({ showSlpHistory: !this.state.showSlpHistory })}
             >
@@ -194,7 +193,7 @@ class App extends Component<IProps, IState> {
           </div><br/>
 
           {/* Coins */}
-          <div hidden={this.domWallet.Wallet.BchCoins.size === 0 && this.domWallet.Wallet.SlpCoins.size === 0}>
+          <div hidden={this.slpWallet.Wallet.BchCoins.size === 0 && this.slpWallet.Wallet.SlpCoins.size === 0}>
             <button
               onClick={() => this.setState({ showCoins: !this.state.showCoins })}
             >
@@ -206,10 +205,10 @@ class App extends Component<IProps, IState> {
             <table style={myTableStyle}>
               <thead><tr><th>UTXO</th><th>Value</th><th>Name</th></tr></thead>
               <tbody>
-                {Array.from(this.domWallet.Wallet.BchCoins).map(c => {
+                {Array.from(this.slpWallet.Wallet.BchCoins).map(c => {
                   return (<tr key={c[0]}><td>{Utils.keyToOutpointString(c[0])}</td><td>{c[1].satoshis.div(10**8).toFixed(8)}</td><td>BCH</td></tr>);
                 })}
-                {Array.from(this.domWallet.Wallet.SlpCoins).map(([tokenId, coins]) => {
+                {Array.from(this.slpWallet.Wallet.SlpCoins).map(([tokenId, coins]) => {
                   return Array.from(coins).map(c => {
                     return (<tr key={c[0]}><td>{Utils.keyToOutpointString(c[0])}</td><td>{this.getSlpAmountString(c[1].amount, tokenId)}</td><td>{this.getTokenName(tokenId)}</td></tr>);
                   })
@@ -221,7 +220,7 @@ class App extends Component<IProps, IState> {
           {/* Create a Transaction */}
           <strong>Create a Transaction</strong><br/>
           <select value={this.state.selectedSlpTokenId} onChange={this.updateSelectedToken}>
-            {Array.from(this.domWallet.Wallet.SlpCoins).map(([tokenId, _]) => (<option key={tokenId} value={tokenId}>{`SLP -> ${this.getTokenName(tokenId)} (${this.getTokenTypeString(tokenId)})`}</option>))}
+            {Array.from(this.slpWallet.Wallet.SlpCoins).map(([tokenId, _]) => (<option key={tokenId} value={tokenId}>{`SLP -> ${this.getTokenName(tokenId)} (${this.getTokenTypeString(tokenId)})`}</option>))}
             <option key="bch" value="bch">Bitcoin Cash</option>
           </select><br/>
           <label htmlFor="payto">PayTo:</label><br/>
@@ -248,7 +247,7 @@ class App extends Component<IProps, IState> {
                 <tbody>
                   {Array.from(this.state.currentTxn!.Inputs).map((input, i) => {
                     let outpoint = Utils.outpointToKey(input.prevTxId, input.outputIndex, true);
-                    let slpOut = this.domWallet.Wallet.SlpOutpointCache.get(outpoint)!;
+                    let slpOut = this.slpWallet.Wallet.SlpOutpointCache.get(outpoint)!;
                     if (slpOut) {
                       return (<tr key={i}><td>{`${input.prevTxId.toString("hex")}:${input.outputIndex}, ${this.getSlpAmountString(slpOut.amount, slpOut.tokenId)} ${this.getTokenTicker(slpOut.tokenId)}, ${slpOut.satoshis} sats`}</td></tr>);
                     }
@@ -331,7 +330,7 @@ class App extends Component<IProps, IState> {
       }
 
       if (this.state.outputAmountValue) {
-        const unspentAmt = Array.from(this.domWallet.Wallet.BchCoins).reduce((p, c, i) => p.add(c[1].satoshis), Big(0))
+        const unspentAmt = Array.from(this.slpWallet.Wallet.BchCoins).reduce((p, c, i) => p.add(c[1].satoshis), Big(0))
         const outputAmt = txn.Outputs.reduce((p, c, i) => p.add(c[0].satoshis), Big(0)).add(this.state.outputAmountValue!);
         if (outputAmt.gt(unspentAmt)) {
           this.state.txnValidationErrors!.add(TxnErrorTypes.LOW_BCH_INPUTS);
@@ -358,7 +357,7 @@ class App extends Component<IProps, IState> {
         }
 
         const tokenId = this.state.selectedSlpTokenId!;
-        const slpCoins = this.domWallet.Wallet.SlpCoins.get(tokenId)!;
+        const slpCoins = this.slpWallet.Wallet.SlpCoins.get(tokenId)!;
         const unspentSlpAmt = Array.from(slpCoins).reduce((p, c, i) => p.add(c[1].amount), Big(0));
         const slpChangeAmt = this.state.currentTxn!.SlpChangeOutput ? this.state.currentTxn!.SlpChangeOutput.amount : 0;
         const outputAmt = txn.SlpOutputs.reduce((p, c, i) => p.add(c), Big(0)).add(tokenAmt).sub(slpChangeAmt);
@@ -373,7 +372,7 @@ class App extends Component<IProps, IState> {
         const opReturnSize = 10 + 32 + 9 * txn.SlpOutputs.length;
 
         // check for sufficient bch balance when new slp output (bch dust) is added
-        const unspentBchAmt = Array.from(this.domWallet.Wallet.BchCoins).reduce((p, c, i) => p.add(c[1].satoshis), Big(0));
+        const unspentBchAmt = Array.from(this.slpWallet.Wallet.BchCoins).reduce((p, c, i) => p.add(c[1].satoshis), Big(0));
         const bchChangeAmt = txn.BchChangeOutput ? txn.BchChangeOutput.amount : 0;
         const outputBchAmt = txn.Outputs.reduce((p, c, i) => p.add(c[0].satoshis), Big(0)).add(DUST_LIMIT).add(changeDust).add(opReturnSize).sub(bchChangeAmt);
         if (outputBchAmt.gt(unspentBchAmt)) {
@@ -414,9 +413,9 @@ class App extends Component<IProps, IState> {
   private updateSelectedToken = (event: React.ChangeEvent<HTMLSelectElement>) => {
     let tokenId = event.target.value;
     if (tokenId !== this.state.selectedSlpTokenId) {
-      this.setState({ currentTxn: new TxBuilder(this.domWallet.Wallet)})
+      this.setState({ currentTxn: new TxBuilder(this.slpWallet.Wallet)})
     }
-    if (event.target.selectedIndex < this.domWallet.Wallet.TokenMetadata.size) {
+    if (event.target.selectedIndex < this.slpWallet.Wallet.TokenMetadata.size) {
       this.setState({ selectedSlpTokenId: tokenId });
     } else {
       this.setState({ selectedSlpTokenId: "bch" });
@@ -445,18 +444,18 @@ class App extends Component<IProps, IState> {
     this.setState({
       outputAddressValue: "",
       outputAmountValue: "",
-      currentTxn: new TxBuilder(this.domWallet.Wallet),
+      currentTxn: new TxBuilder(this.slpWallet.Wallet),
       selectedSlpTokenId: "bch",
     });
   }
 
   private sendTransaction = async () => {
     try {
-      const { txnHex, fee, sendAmount } = await this.state.currentTxn!.SignTransaction(() => this.domWallet.Wallet.PrivateKey); 
+      const { txnHex, fee, sendAmount } = await this.state.currentTxn!.SignTransaction(() => this.slpWallet.Wallet.PrivateKey); 
       console.log(txnHex);
       const ok = await Confirm(`Send: ${sendAmount} satoshis with fee: ${fee} satoshis?`);
       if (ok) {
-        const txid = await this.domWallet.Wallet.SendTransaction(txnHex);
+        const txid = await this.slpWallet.Wallet.SendTransaction(txnHex);
         await Alert(`Broadcasted: ${txid}`);
         this.clearTransaction();
         this.forceUpdate();
@@ -469,9 +468,9 @@ class App extends Component<IProps, IState> {
 
   private setMaxAmount = () => {
     if (this.state.selectedSlpTokenId === "bch") {
-      this.setState({ outputAmountValue: this.domWallet.Wallet.GetBchBalance().toFixed() })
+      this.setState({ outputAmountValue: this.slpWallet.Wallet.GetBchBalance().toFixed() })
     } else {
-      let bal = this.domWallet.Wallet.GetSlpBalances().get(this.state.selectedSlpTokenId!)!;
+      let bal = this.slpWallet.Wallet.GetSlpBalances().get(this.state.selectedSlpTokenId!)!;
       let amt = this.getTokenAmount(bal, this.state.selectedSlpTokenId!, true);
       this.setState({ outputAmountValue: amt.toFixed() });
     }
@@ -505,7 +504,7 @@ class App extends Component<IProps, IState> {
   }
 
   private getTokenAmount(val: Big, tokenId: string, display=false) {
-    const tm = this.domWallet.Wallet.TokenMetadata.get(tokenId)!;
+    const tm = this.slpWallet.Wallet.TokenMetadata.get(tokenId)!;
     let decimals: number;
     if (tm.hasType1()) {
       decimals = tm.getType1()!.getDecimals();
@@ -528,18 +527,18 @@ class App extends Component<IProps, IState> {
       return;
     }
     try {
-      this.domWallet.Wallet.UpdateMnemonic(userValue);
+      this.slpWallet.Wallet.UpdateMnemonic(userValue);
     } catch (_) {
       console.log(`invalid wif: ${userValue}`);
     }
     this.setState({
-      address: this.domWallet.Wallet.Address.toCashAddress(),
+      address: this.slpWallet.Wallet.Address.toCashAddress(),
       showPrivKey: false,
       showSlpAddressFormat: false,
       // loading: true // TODO: provide UI indication that the wallet balances are loading.
     });
 
-    this.domWallet.Wallet.LoadInitialBalances();
+    this.slpWallet.Wallet.LoadInitialBalances();
   }
 
   private getTokenTicker(tokenId?: string): string {
@@ -549,10 +548,10 @@ class App extends Component<IProps, IState> {
     if (tokenId === "bch") {
       return "satoshis";
     }
-    if (!this.domWallet.Wallet.TokenMetadata!.has(tokenId)) {
+    if (!this.slpWallet.Wallet.TokenMetadata!.has(tokenId)) {
       return `?`;
     }
-    const tm = this.domWallet.Wallet.TokenMetadata!.get(tokenId)!;
+    const tm = this.slpWallet.Wallet.TokenMetadata!.get(tokenId)!;
     let nameBuf: Uint8Array;
     if (tm.hasType1()) {
       nameBuf = tm.getType1()!.getTokenTicker_asU8();
@@ -570,10 +569,10 @@ class App extends Component<IProps, IState> {
     if (tokenId === "bch") {
       return "Bitcoin Cash"
     }
-    if (!this.domWallet.Wallet.TokenMetadata!.has(tokenId)) {
+    if (!this.slpWallet.Wallet.TokenMetadata!.has(tokenId)) {
       return `${tokenId.slice(0, 10)}...${tokenId.slice(54, 64)}`;
     }
-    const tm = this.domWallet.Wallet.TokenMetadata!.get(tokenId)!;
+    const tm = this.slpWallet.Wallet.TokenMetadata!.get(tokenId)!;
     let nameBuf: Uint8Array;
     if (tm.hasType1()) {
       nameBuf = tm.getType1()!.getTokenName_asU8();
@@ -588,7 +587,7 @@ class App extends Component<IProps, IState> {
   }
 
   private getTokenTypeString(tokenId: string): string {
-    const tm = this.domWallet.Wallet.TokenMetadata.get(tokenId);
+    const tm = this.slpWallet.Wallet.TokenMetadata.get(tokenId);
     if (!tm) {
       return "?";
     }
@@ -608,7 +607,7 @@ class App extends Component<IProps, IState> {
     if (!tokenId) {
       tokenId = this.state.selectedSlpTokenId!;
     }
-    const tm = this.domWallet.Wallet.TokenMetadata!.get(tokenId)!;
+    const tm = this.slpWallet.Wallet.TokenMetadata!.get(tokenId)!;
     // if (!tm) {
     //   return "...";
     // }
@@ -626,7 +625,7 @@ class App extends Component<IProps, IState> {
   }
 
   private toggleAddrFormat = async () => {
-    let address = this.domWallet.Wallet.Address.toCashAddress();
+    let address = this.slpWallet.Wallet.Address.toCashAddress();
     if (!this.state.showSlpAddressFormat) {
       address = bchaddr.toSlpAddress(address);
     }

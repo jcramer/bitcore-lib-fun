@@ -1,15 +1,15 @@
-import { App, WalletStorage } from "./Interfaces";
-import { Wallet } from "./Wallet";
-import { BrowserLocalStorage } from "./Storage/BrowserStorage";
-import { BchdNetwork } from "./Network/BchdNetwork";
-    
-// DomWallet is the most simple wallet implementation intended for prototyping purposes
-// by default using the browser's local storage for storing private keys.
-export class DomWallet {
+import { App, WalletStorage } from "../slpwallet-core/Interfaces";
+import { Wallet } from "../slpwallet-core/Wallet";
+import { BrowserStorage } from "./Storage";
+import { BchdNetwork } from "./BchdNetwork";
+
+// BrowserWalletContainer is a container for a wallet using the browser
+// storage for storing private keys and transaction history.
+export class BrowserWalletContainer {
     public Ready = false;
     public Network = new BchdNetwork(process.env.REACT_APP_RPC_SERVER!);
     public Wallet: Wallet;
-    public Storage = new BrowserLocalStorage();
+    public Storage = new BrowserStorage();
 
     constructor(app: App, storage?: WalletStorage, network?: BchdNetwork) {
         if (window === undefined) {
@@ -24,8 +24,3 @@ export class DomWallet {
         this.Wallet = new Wallet(this.Storage, this.Network, app);
     }
 };
-
-// NodeWallet is 
-export class NodeWallet {
-// todo...   
-}

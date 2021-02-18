@@ -1,23 +1,37 @@
-import { BlockNotification, GetAddressTransactionsResponse, GetTokenMetadataResponse,
-  GetTransactionResponse, GrpcClient, Transaction, TransactionNotification } from "grpc-bchrpc-web";
-import Utils from "../Utils";
-
-export interface Network {
-  SendTransaction(txnHex: string, callback?: () => any): Promise<string>;
-  GetTransaction(txid: string): Promise<GetTransactionResponse>;
-  GetTokenMetadata(tokenIds: string[]): Promise<GetTokenMetadataResponse>;
-  GetAddressTransactions(address: string, sinceBlock?: number): Promise<GetAddressTransactionsResponse>;
-  Subscribe(addresses: string[], onTransactionNotification: (txn: Transaction) => any): Promise<void>;
-}
+import * as bchrpc from "grpc-bchrpc";
+import { BlockNotification, GetBlockchainInfoResponse, GrpcClient, TransactionNotification } from "grpc-bchrpc-web";
+import Utils from "../slpwallet-core/Utils";
+import { Network } from "../slpwallet-core/Interfaces";
 
 export class BchdNetwork implements Network {
 
+  public get NetworKType() {
+    switch (this.networkType) {
+      case 0:
+        return "MAINNET"
+      case 1:
+        return "REGTEST"
+      case 2:
+        return "TESTNET3"
+      case 3:
+        return "SIMNET"
+      default:
+        return null
+    }
+  }
+
   private networkUrl: string;
+  private networkType?: GetBlockchainInfoResponse.BitcoinNetMap[keyof GetBlockchainInfoResponse.BitcoinNetMap];
   private subscriptions = { txn: false, blockInfo: false, blockData: false };
   private blockHeight = -1;
 
   constructor(url: string) {
     this.networkUrl = url;
+  }
+
+  public async GetBlockchainInfo() {
+    const client = new GrpcClient({ url: this.networkUrl });
+    return client.getBlockchainInfo();
   }
 
   public async SendTransaction(txnHex: string, callback?: () => any): Promise<string> {
@@ -31,7 +45,7 @@ export class BchdNetwork implements Network {
 
   public async GetTransaction(txid: string) {
     const client = new GrpcClient({ url: this.networkUrl });
-    return await client.getTransaction({hash: txid, reversedHashOrder: true}); 
+    return await client.getTransaction({hash: txid, reversedHashOrder: true}) as bchrpc.GetTransactionResponse; 
   }
 
   public async GetTokenMetadata(tokenIds: string[]) {
@@ -41,15 +55,16 @@ export class BchdNetwork implements Network {
 
   public async GetAddressTransactions(address: string, sinceBlock?: number) {
     const client = new GrpcClient({ url: this.networkUrl });
-    const slpEnabled = (await client.getBlockchainInfo()).getSlpIndex();
+    const info = await client.getBlockchainInfo();
+    const slpEnabled = info.getSlpIndex();
     if (! slpEnabled) {
       throw Error("connected bchd does not have slp index enabled");
     }
-
-    return await client.getAddressTransactions({ address });
+    this.networkType = info.getBitcoinNet();
+    return await client.getAddressTransactions({ address }) as bchrpc.GetAddressTransactionsResponse;
   }
 
-  public async Subscribe(addresses: string[], onTransactionNotification: (txn: Transaction) => any) {
+  public async Subscribe(addresses: string[], onTransactionNotification: (txn: bchrpc.Transaction) => any) {
 
     // setup a self-healing stream for mempool transactions
     const createTxnStream = async () => {
@@ -82,7 +97,7 @@ export class BchdNetwork implements Network {
       txnStream.on("data", async (data: TransactionNotification) => {
         this.subscriptions.txn = true;
         let txn = data.getUnconfirmedTransaction()!.getTransaction()!;
-        onTransactionNotification(txn);
+        onTransactionNotification(txn as bchrpc.Transaction);
       });
       console.log(`[WALLET] txn data stream established.`);
 
