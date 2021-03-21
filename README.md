@@ -6,7 +6,7 @@ THIS WALLET IS CONSIDERED [ALPHA SOFTWARE](https://en.wikipedia.org/wiki/Softwar
 
 Connecting to a full node:
 
-1. You will need to connect to a BCHD full node that has `slpindex` enabled (see `REACT_APP_RPC_SERVER` in .env.developement).  Run a BCHD full node locally with: `bchd --slpindex --grpclisten=0.0.0.0`.  You can download and install bchd with an slp-indexer at `https://github.com/simpleledgerinc/bchd`.
+1. You will need to connect to a BCHD full node that has `slpindex` and `txindex` enabled (see `REACT_APP_RPC_SERVER` in .env.developement).  Run a BCHD full node locally with: `bchd --slpindex --txindex --grpclisten=0.0.0.0`.  You can download and install bchd with an slp-indexer at `https://github.com/simpleledgerinc/bchd`.
 
 2. Using Chrome browser you can connect directly to your full node running by enabling the flag `chrome://flags/#allow-insecure-localhost`.
 
