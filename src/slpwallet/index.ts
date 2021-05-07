@@ -7,7 +7,7 @@ import { BchdNetwork } from "./Network/BchdNetwork";
 // by default using the browser's local storage for storing private keys.
 export class DomWallet {
     public Ready = false;
-    public Network = new BchdNetwork(process.env.REACT_APP_RPC_SERVER!);
+    public Network = new BchdNetwork(process.env.REACT_APP_RPC_SERVER || 'https://bchd.fountainhead.cash');
     public Wallet: Wallet;
     public Storage = new BrowserLocalStorage();
 

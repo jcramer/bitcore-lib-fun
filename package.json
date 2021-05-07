@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "homepage": "http://jcramer.github.io/bitcore-lib-fun",
-  "dependencies": {},
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",

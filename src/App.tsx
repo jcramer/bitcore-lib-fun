@@ -23,8 +23,6 @@ interface IState {
   checkingBalance?: boolean;
   showCoins?: boolean;
   showTxnInputs?: boolean;
-  showBchHistory?: boolean;
-  showSlpHistory?: boolean;
   outputAddressValue?: string;
   outputAddressValid?: boolean;
   outputAmountValue?: string;
@@ -69,8 +67,6 @@ class App extends Component<IProps, IState> {
       checkingBalance: true,
       showCoins: false,
       showTxnInputs: false,
-      showBchHistory: false,
-      showSlpHistory: false,
       outputAddressValue: "",
       outputAddressValid: false,
       outputAmountValue: "",
@@ -107,23 +103,31 @@ class App extends Component<IProps, IState> {
               rel="noopener noreferrer"
             >
               <img src={logo} className="App-logo" alt="logo" width="30%" height="30%"/>
-            </a> <h3>Web Wallet</h3>
+            </a>
         </header>
           {/* Display private key backup! */}
           <br/><br/>
-          <strong>Back up your funds with your 12-word seed phase!!!</strong><br/>
-          <div hidden={!this.state.showPrivKey}>
-            WIF or Seed Phrase:<br/><input defaultValue={`${this.domWallet.Wallet.Mnemonic ? this.domWallet.Wallet.Mnemonic : this.domWallet.Wallet.Wif}`} onChange={this.importMnemonic}/><br/>
-            <div hidden={this.domWallet.Wallet.XPub === null}>
-              Xpub:<br/>{this.domWallet.Wallet.XPub}
-            </div>
-          </div>
-
+          <strong>Back up your funds with your WIF!!!</strong><br/>
           <button
             onClick={this.toggleMnemonic}
           >
             {this.state.showPrivKey ? "Hide" : "Show"} Private Keys
-          </button>
+          </button>&nbsp;&nbsp;
+          <a
+            href="https://iancoleman.io/bip39/"
+            target="_blank"
+            rel="noopener noreferrer"
+            download
+          >
+            Generate Keys (BIP39)
+          </a><br/><br/>
+          <div hidden={!this.state.showPrivKey}>
+            WIF: <input className="App-private-keys" defaultValue={`${this.domWallet.Wallet.Mnemonic ? this.domWallet.Wallet.Mnemonic : this.domWallet.Wallet.Wif}`} onChange={this.importMnemonic}/><br/>
+            <div hidden={this.domWallet.Wallet.XPub === null}>
+              Xpub:<br/>{this.domWallet.Wallet.XPub}
+            </div>
+          </div>
+          <hr />
 
           {/* Display network mode */}
           {/* <p>
@@ -139,15 +143,16 @@ class App extends Component<IProps, IState> {
 
           {/* Display address */}
           <p>
-            <strong>Your wallet address:</strong><br/>
-            {this.state.address!}<br/>
+            <strong>Your wallet address:</strong><br/><br/>
+            <QRCode value={this.state.address!} /><br/><br/>
+            {this.state.address!}<br/><br/>
             <button
             onClick={this.toggleAddrFormat}
             >
               Switch to {this.state.showSlpAddressFormat ? "cash" : "slp" }Addr format
             </button>
           </p>
-          <QRCode value={this.state.address!} /><br/>
+          <hr />
 
           {/* Display SLP token balances */}
           <div hidden={this.domWallet.Wallet.SlpCoins.size === 0}>
@@ -168,41 +173,15 @@ class App extends Component<IProps, IState> {
             No BCH or SLP balance.
           </p>
 
-          {/* BCH Txn History */}
-          <div hidden={this.domWallet.Wallet.BchCoins.size === 0}>
-            <button
-              onClick={() => this.setState({ showBchHistory: !this.state.showBchHistory })}
-            >
-              {this.state.showBchHistory ? "Hide" : "Show"} BCH History
-            </button>
-          </div>
-          <div hidden={!this.state.showBchHistory}>
-            --BCH HISTORY HERE--
-          </div><br/>
-
-
-          {/* SLP Transaction History */}
-          <div hidden={this.domWallet.Wallet.SlpCoins.size === 0}>
-            <button
-              onClick={() => this.setState({ showSlpHistory: !this.state.showSlpHistory })}
-            >
-              {this.state.showSlpHistory ? "Hide" : "Show"} SLP History
-            </button>
-          </div>
-          <div hidden={!this.state.showSlpHistory}>
-            --SLP HISTORY HERE--
-          </div><br/>
-
           {/* Coins */}
           <div hidden={this.domWallet.Wallet.BchCoins.size === 0 && this.domWallet.Wallet.SlpCoins.size === 0}>
             <button
               onClick={() => this.setState({ showCoins: !this.state.showCoins })}
             >
-              {this.state.showCoins ? "Hide" : "Show"} Unspent Coins
+              {this.state.showCoins ? "Hide" : "Show"} UTXOs List
             </button>
           </div>
           <div hidden={!this.state.showCoins}>
-            <strong>Unspent Coins</strong>
             <table style={myTableStyle}>
               <thead><tr><th>UTXO</th><th>Value</th><th>Name</th></tr></thead>
               <tbody>
@@ -216,19 +195,21 @@ class App extends Component<IProps, IState> {
                 })}
               </tbody>
             </table>
-          </div><br/>
+          </div>
+          <hr />
 
           {/* Create a Transaction */}
-          <strong>Create a Transaction</strong><br/>
-          <select value={this.state.selectedSlpTokenId} onChange={this.updateSelectedToken}>
+          <strong>Send</strong><br/>
+          <label htmlFor="payto">PayTo: </label>
+          <input className="App-pay-to" id="payto" value={this.state.outputAddressValue} placeholder={this.state.selectedSlpTokenId! === "bch" ? "cash or slp address" : "slp address"} onChange={this.updateOutputAddress}></input><br/>
+          <label htmlFor="coin">Coin: </label>
+          <select id="coin" value={this.state.selectedSlpTokenId} onChange={this.updateSelectedToken}>
             {Array.from(this.domWallet.Wallet.SlpCoins).map(([tokenId, _]) => (<option key={tokenId} value={tokenId}>{`SLP -> ${this.getTokenName(tokenId)} (${this.getTokenTypeString(tokenId)})`}</option>))}
             <option key="bch" value="bch">Bitcoin Cash</option>
-          </select><br/>
-          <label htmlFor="payto">PayTo:</label><br/>
-          <input id="payto" value={this.state.outputAddressValue} placeholder={this.state.selectedSlpTokenId! === "bch" ? "cash or slp address" : "slp address"} onChange={this.updateOutputAddress}></input><br/>
-          <label htmlFor="amount">Amount:</label><br/>
-          <input id="amount" value={this.state.outputAmountValue} placeholder={this.getTokenTicker()} onChange={this.updateOutputValue}></input><br/>
-          <button onClick={this.setMaxAmount}>Max</button><button onClick={this.addOutput}>Add Output</button><br/>
+          </select>&nbsp;&nbsp;
+          <label htmlFor="amount">Amount: </label>
+          <input className="App-amount" id="amount" value={this.state.outputAmountValue} placeholder={this.getTokenTicker()} onChange={this.updateOutputValue}></input><br/>
+          <button onClick={this.setMaxAmount}>Max</button>&nbsp;&nbsp;<button onClick={this.addOutput}>Add Output</button><br/>
           <div hidden={this.state.txnValidationErrors!.size === 0}>
             <br/><strong>Validation Errors</strong>
             <table style={myTableStyle}>
@@ -281,14 +262,12 @@ class App extends Component<IProps, IState> {
                   })}
               </tbody>
             </table><br/>
-          </div><br/>
+          </div>
 
           <div hidden={this.state.currentTxn!.Outputs.length === 0 || this.state.txnValidationErrors!.size !== 0}>
-            <button onClick={this.sendTransaction}>Send</button>
-          </div>
-          <div>
+            <button onClick={this.sendTransaction}>Send</button>&nbsp;&nbsp;
             <button onClick={this.clearTransaction}>Clear</button>
-          </div><br/>
+          </div>
         </div>
     );
   }
@@ -454,10 +433,11 @@ class App extends Component<IProps, IState> {
     try {
       const { txnHex, fee, sendAmount } = await this.state.currentTxn!.SignTransaction(() => this.domWallet.Wallet.PrivateKey); 
       console.log(txnHex);
-      const ok = await Confirm(`Send: ${sendAmount} satoshis with fee: ${fee} satoshis?`);
+      const ok = await Confirm(`${sendAmount} satoshis with fee: ${fee} satoshis?`, 'Sending transaction');
       if (ok) {
+        const explorerUri = 'https://explorer.bitcoin.com/bch/tx/'
         const txid = await this.domWallet.Wallet.SendTransaction(txnHex);
-        await Alert(`Broadcasted: ${txid}`);
+        await Alert(<a href={`${explorerUri}${txid}`} target="_blank" rel="noopener noreferrer" download>{txid}</a>, 'Broadcasted');
         this.clearTransaction();
         this.forceUpdate();
       }

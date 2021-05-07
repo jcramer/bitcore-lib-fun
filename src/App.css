@@ -28,6 +28,18 @@
   color: #61dafb;
 }
 
+.App-private-keys {
+  width: 410px;
+}
+
+.App-pay-to {
+  width: 380px;
+}
+
+.App-amount {
+  width: 80px;
+}
+
 @keyframes App-logo-spin {
   from {
     transform: rotate(0deg);
@@ -36,3 +48,5 @@
     transform: rotate(360deg);
   }
 }
+
+
