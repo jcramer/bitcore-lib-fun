@@ -187,14 +187,14 @@ class App extends Component<IProps, IState> {
           </div>
           <div hidden={!this.state.showCoins}>
             <table style={myTableStyle}>
-              <thead><tr><th>UTXO</th><th>Value</th><th>Name</th></tr></thead>
+              <thead><tr><th>UTXO</th><th>Value</th><th>Name</th><th>Type</th></tr></thead>
               <tbody>
                 {Array.from(this.domWallet.Wallet.BchCoins).map(c => {
                   return (<tr key={c[0]}><td>{Utils.keyToOutpointString(c[0])}</td><td>{c[1].satoshis.div(10**8).toFixed(8)}</td><td>BCH</td></tr>);
                 })}
                 {Array.from(this.domWallet.Wallet.SlpCoins).map(([tokenId, coins]) => {
                   return Array.from(coins).map(c => {
-                    return (<tr key={c[0]}><td>{Utils.keyToOutpointString(c[0])}</td><td>{this.getSlpAmountString(c[1].amount, tokenId)}</td><td>{this.getTokenName(tokenId)}</td></tr>);
+                    return (<tr key={c[0]}><td>{Utils.keyToOutpointString(c[0])}</td><td>{this.getSlpAmountString(c[1].amount, tokenId)}</td><td>{this.getTokenName(tokenId)}</td><td>{this.getTokenTypeString(tokenId)}</td></tr>);
                   })
                 })}
               </tbody>
