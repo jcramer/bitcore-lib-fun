@@ -1,8 +1,8 @@
 {
-  "name": "browser-wallet",
-  "version": "0.1.0",
+  "name": "spa-wallet",
+  "version": "0.2.1",
   "private": true,
-  "homepage": "http://jcramer.github.io/bitcore-lib-fun",
+  "homepage": "http://zh.thedev.id/spa-wallet/",
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
@@ -56,7 +56,6 @@
     "react-scripts": "4.0.1",
     "react-st-modal": "^1.1.3",
     "slp-mdm": "0.0.7",
-    "typescript": "^4.1.3",
-    "web-vitals": "^0.2.4"
+    "typescript": "^4.1.3"
   }
 }

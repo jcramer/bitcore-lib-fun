@@ -18,6 +18,7 @@ interface IProps {}
 interface IState {
   showPrivKey?: boolean;
   showSlpAddressFormat?: boolean;
+  showCopySuccess?: boolean;
   useMainnet?: boolean;
   address?: string;
   checkingBalance?: boolean;
@@ -62,6 +63,7 @@ class App extends Component<IProps, IState> {
     this.state = {
       showPrivKey: false,
       showSlpAddressFormat: true,
+      showCopySuccess: false,
       address: bchaddr.toSlpAddress(this.domWallet.Wallet.Address.toCashAddress()),
       useMainnet: true,
       checkingBalance: true,
@@ -107,7 +109,7 @@ class App extends Component<IProps, IState> {
         </header>
           {/* Display private key backup! */}
           <br/><br/>
-          <strong>Back up your funds with your WIF!!!</strong><br/>
+          <strong>Back up your funds with your seed or WIF!!!</strong><br/>
           <button
             onClick={this.toggleMnemonic}
           >
@@ -122,7 +124,7 @@ class App extends Component<IProps, IState> {
             Generate Keys (BIP39)
           </a><br/><br/>
           <div hidden={!this.state.showPrivKey}>
-            WIF: <input className="App-private-keys" defaultValue={`${this.domWallet.Wallet.Mnemonic ? this.domWallet.Wallet.Mnemonic : this.domWallet.Wallet.Wif}`} onChange={this.importMnemonic}/><br/>
+            WIF or seed: <input className="App-private-keys" defaultValue={`${this.domWallet.Wallet.Mnemonic ? this.domWallet.Wallet.Mnemonic : this.domWallet.Wallet.Wif}`} onChange={this.importMnemonic}/><br/>
             <div hidden={this.domWallet.Wallet.XPub === null}>
               Xpub:<br/>{this.domWallet.Wallet.XPub}
             </div>
@@ -142,16 +144,18 @@ class App extends Component<IProps, IState> {
           </p> */}
 
           {/* Display address */}
-          <p>
+          <div>
             <strong>Your wallet address:</strong><br/><br/>
             <QRCode value={this.state.address!} /><br/><br/>
-            {this.state.address!}<br/><br/>
+            <div className="App-qr-text" onClick={this.copyToClipboard}>{this.state.address!}</div>
+            {this.state.showCopySuccess && <div className="App-qr-success"> (copied!) </div>}
+            <br/><br/>
             <button
             onClick={this.toggleAddrFormat}
             >
               Switch to {this.state.showSlpAddressFormat ? "cash" : "slp" }Addr format
             </button>
-          </p>
+          </div>
           <hr />
 
           {/* Display SLP token balances */}
@@ -208,8 +212,9 @@ class App extends Component<IProps, IState> {
             <option key="bch" value="bch">Bitcoin Cash</option>
           </select>&nbsp;&nbsp;
           <label htmlFor="amount">Amount: </label>
-          <input className="App-amount" id="amount" value={this.state.outputAmountValue} placeholder={this.getTokenTicker()} onChange={this.updateOutputValue}></input><br/>
-          <button onClick={this.setMaxAmount}>Max</button>&nbsp;&nbsp;<button onClick={this.addOutput}>Add Output</button><br/>
+          <input className="App-amount" id="amount" value={this.state.outputAmountValue} placeholder={this.getTokenTicker()} onChange={this.updateOutputValue}></input>&nbsp;&nbsp;
+          <button onClick={this.setMaxAmount}>Max</button><br/><br/>
+          <button onClick={this.addOutput}>Add Output</button><br/>
           <div hidden={this.state.txnValidationErrors!.size === 0}>
             <br/><strong>Validation Errors</strong>
             <table style={myTableStyle}>
@@ -277,6 +282,13 @@ class App extends Component<IProps, IState> {
       super.setState(state, resolve);
     });
   }
+
+  public copyToClipboard = (event: React.MouseEvent<HTMLDivElement>) => {
+    const qrCode = event.target as HTMLDivElement;
+    event.preventDefault();
+    navigator.clipboard.writeText(qrCode.textContent!);
+    this.setState({ showCopySuccess: true });
+  };
 
   private validateAddOutput = (): number => {
 
@@ -507,6 +519,7 @@ class App extends Component<IProps, IState> {
     if (!userValue) {
       return;
     }
+    this.setState({ showCopySuccess: false });
     try {
       this.domWallet.Wallet.UpdateMnemonic(userValue);
     } catch (_) {
@@ -606,6 +619,7 @@ class App extends Component<IProps, IState> {
   }
 
   private toggleAddrFormat = async () => {
+    this.setState({ showCopySuccess: false });
     let address = this.domWallet.Wallet.Address.toCashAddress();
     if (!this.state.showSlpAddressFormat) {
       address = bchaddr.toSlpAddress(address);

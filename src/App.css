@@ -40,6 +40,10 @@
   width: 80px;
 }
 
+.App-qr-success {
+  color: #009900;
+}
+
 @keyframes App-logo-spin {
   from {
     transform: rotate(0deg);
