@@ -47,14 +47,19 @@ enum TxnErrorTypes {
 }
 
 const myTableStyle = {
-  border:"2px solid grey", 
+  border:"2px solid grey",
   "marginLeft": "auto",
   "marginRight": "auto"
 } as React.CSSProperties;
 
+const publicBchdNodes = [
+  'bchd.fountainhead.cash',
+  'bchd.ny1.simpleledger.io',
+  'localhost:8335'
+]
 
 class App extends Component<IProps, IState> {
-  private readonly domWallet: DomWallet = new DomWallet(this);
+  private domWallet: DomWallet = new DomWallet(this);
   private mounted = false;
 
   constructor(props: IProps) {
@@ -107,8 +112,14 @@ class App extends Component<IProps, IState> {
               <img src={logo} className="App-logo" alt="logo" width="30%" height="30%"/>
             </a>
         </header>
+          {/* Switch bchd node */}
+          <p>
+            <label htmlFor="node">Node: </label>
+            <select id="node" value={this.currentNodeUri()} onChange={this.updateNodeUri}>
+              {publicBchdNodes.map((nodeUri) => (<option key={nodeUri} value={nodeUri}>{nodeUri}</option>))}
+            </select>
+          </p>
           {/* Display private key backup! */}
-          <br/><br/>
           <strong>Back up your funds with your seed or WIF!!!</strong><br/>
           <button
             onClick={this.toggleMnemonic}
@@ -119,7 +130,6 @@ class App extends Component<IProps, IState> {
             href="https://iancoleman.io/bip39/"
             target="_blank"
             rel="noopener noreferrer"
-            download
           >
             Generate Keys (BIP39)
           </a><br/><br/>
@@ -130,18 +140,6 @@ class App extends Component<IProps, IState> {
             </div>
           </div>
           <hr />
-
-          {/* Display network mode */}
-          {/* <p>
-            <strong>BCHD Network:</strong><br/>
-            {this.state.useMainnet ? "Mainnet" : "Testnet3" }<br/>
-            ({this.domWallet.Wallet.NetworkUrl})<br/>
-            <button
-              onClick={this.toggleNetwork}
-            >
-              Switch to {this.state.useMainnet ? "testnet3" : "mainnet" }
-            </button>
-          </p> */}
 
           {/* Display address */}
           <div>
@@ -273,6 +271,15 @@ class App extends Component<IProps, IState> {
             <button onClick={this.sendTransaction}>Send</button>&nbsp;&nbsp;
             <button onClick={this.clearTransaction}>Clear</button>
           </div>
+
+          <footer className="App-footer">
+             Based on <a href="https://github.com/jcramer/bitcore-lib-fun"
+                  target="_blank"
+                  rel="noopener noreferrer">bitcore-lib-fun</a>.&nbsp;&nbsp;
+             Sources on <a href="https://github.com/zh/spa-wallet"
+                  target="_blank"
+                  rel="noopener noreferrer">Github</a>.
+          </footer>
         </div>
     );
   }
@@ -414,6 +421,20 @@ class App extends Component<IProps, IState> {
     }
   }
 
+  private updateNodeUri = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    let nodeUri = event.target.value;
+    if (publicBchdNodes.includes(nodeUri)) {
+      this.domWallet.setNode(nodeUri);
+      this.domWallet.Wallet.LoadInitialBalances();
+      this.domWallet.Wallet.Subscribe();
+      this.UpdateWalletUI();
+    }
+  }
+
+  private currentNodeUri = (): string => {
+    return this.domWallet.Storage.GetNode() || publicBchdNodes[0];
+  }
+
   private updateOutputValue = (event: React.ChangeEvent<HTMLInputElement>) => {
     try {
       Big(event.target.value);
@@ -421,8 +442,8 @@ class App extends Component<IProps, IState> {
       this.setState({ outputAmountValid: false, outputAmountValue: event.target.value });
       return;
     }
-    
-    // check 
+
+    // check
     if (Big(event.target.value).lt(546)) {
       this.setState({ outputAmountValid: false, outputAmountValue: event.target.value });
       return;
@@ -443,7 +464,7 @@ class App extends Component<IProps, IState> {
 
   private sendTransaction = async () => {
     try {
-      const { txnHex, fee, sendAmount } = await this.state.currentTxn!.SignTransaction(() => this.domWallet.Wallet.PrivateKey); 
+      const { txnHex, fee, sendAmount } = await this.state.currentTxn!.SignTransaction(() => this.domWallet.Wallet.PrivateKey);
       console.log(txnHex);
       const ok = await Confirm(`${sendAmount} satoshis with fee: ${fee} satoshis?`, 'Sending transaction');
       if (ok) {

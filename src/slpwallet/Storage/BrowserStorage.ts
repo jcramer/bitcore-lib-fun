@@ -15,6 +15,13 @@ export class BrowserLocalStorage implements WalletStorage {
     localStorage.removeItem("bitcore-fun-seed");
     return localStorage.setItem("bitcore-fun-wif", wif);
   }
+  public GetNode() {
+    return localStorage.getItem("bitcore-fun-node");
+  }
+  public SetNode(node: string) {
+    localStorage.removeItem("bitcore-fun-node");
+    return localStorage.setItem("bitcore-fun-node", node);
+  }
   public GetBlock(address: string): number|null {
     let block = localStorage.getItem(address);
     if (block) {

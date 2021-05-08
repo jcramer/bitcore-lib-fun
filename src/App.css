@@ -24,6 +24,16 @@
   color: white;
 }
 
+.App-footer {
+  height: 50px;
+  background-color: #282c34;
+  color: white;
+}
+
+.App-footer a {
+  color: white;
+}
+
 .App-link {
   color: #61dafb;
 }

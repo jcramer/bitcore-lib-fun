@@ -20,6 +20,10 @@ export class BchdNetwork implements Network {
     this.networkUrl = url;
   }
 
+  public SetUri(url: string) {
+    this.networkUrl = url;
+  }
+
   public async SendTransaction(txnHex: string, callback?: () => any): Promise<string> {
     const client = new GrpcClient({ url: this.networkUrl });
     let res = await client.submitTransaction({txnHex});

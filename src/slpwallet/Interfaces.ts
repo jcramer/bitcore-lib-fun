@@ -8,6 +8,8 @@ export interface WalletStorage {
     SetSeed(seed: string): void;
     GetWif(): string|null;
     SetWif(wif: string): void;
+    GetNode(): string|null;
+    SetNode(node: string): void;
     GetBlock(address: string): number|null;
     SetBlock(address: string, block: number|null): void;
 }
